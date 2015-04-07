@@ -1,0 +1,5 @@
+core = "7.x"
+description = "Title statistics block for NNELS"
+name = NNELS Title Stats
+package = CALS
+files[] = nnels_title_stats.module
