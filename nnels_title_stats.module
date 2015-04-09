@@ -6,7 +6,7 @@ function nnels_title_stats_block_info() {
   $blocks = array();
 
   $blocks['title_stats'] = array(
-    'info' => t('Provides Title Statistics'),
+    'info' => t('Title Statistics'),
     'cache' => DRUPAL_CACHE_GLOBAL,
     );
 
@@ -112,7 +112,15 @@ function title_stats_total_titles() {
 function title_stats_total_file_resource() {
   
   $start = microtime(true);
-  $query = db_query("SELECT entity_id FROM {field_data_field_file_resource}");
+  $query = db_query("SELECT DISTINCT entity_id
+                    FROM {field_data_field_file_resource} fdfr
+                    INNER JOIN
+                    (SELECT nid
+                    FROM {node}
+                    WHERE type = :type
+                    AND status = 1) AS nodes
+                    ON nodes.nid = fdfr.entity_id", array(':type' => 'repository_item'
+                    ));
   $results = $query->rowCount();
   $end = microtime(true);
 
@@ -179,7 +187,7 @@ function title_stats_cancon_genre_total() {
   $speed = ($end - $start) * 1000;
   dpm($speed . 'ms', 'Canadian genre query speed (ms): ');
 
-  return $results; 
+  return $results;
 }
 
 function title_stats_cancon_subject_tids() {
