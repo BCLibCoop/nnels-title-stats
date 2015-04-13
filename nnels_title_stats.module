@@ -25,7 +25,7 @@ function nnels_title_stats_block_view($block_name = '') {
 
     $files_rows = array(
       array('Published titles', $titles_total),
-      array('File resources', $files_total),
+      array('Published file resources', $files_total),
       array('Synthetic narrated', $synth_narrators),
       array('Live narrated', $nonsynth),
       );
@@ -72,10 +72,6 @@ function nnels_title_stats_block_view($block_name = '') {
       array('header' => $format_header, 
             'rows' => $format_rows));
 
-    $synth_narrators = title_stats_synth_totals();
-    $narrators = title_stats_narrator_totals();
-    $nonsynth = (int)$narrators - (int)$synth_narrators;
-
     //$cancon_genre = title_stats_cancon_genre_total();
 
     //$can_subj_tids = title_stats_cancon_subject_tids();
@@ -110,17 +106,16 @@ function title_stats_total_titles() {
 }
 
 function title_stats_total_file_resource() {
-  
+  //Number of file resources attached to published repo items
   $start = microtime(true);
-  $query = db_query("SELECT DISTINCT entity_id
+  $query = db_query("SELECT field_file_resource_value
                     FROM {field_data_field_file_resource} fdfr
                     INNER JOIN
                     (SELECT nid
                     FROM {node}
-                    WHERE type = :type
-                    AND status = 1) AS nodes
-                    ON nodes.nid = fdfr.entity_id", array(':type' => 'repository_item'
-                    ));
+                    WHERE status = 1) AS nodes
+                    ON nodes.nid = fdfr.entity_id"
+                    );
   $results = $query->rowCount();
   $end = microtime(true);
 
@@ -132,13 +127,26 @@ function title_stats_total_file_resource() {
 
 function title_stats_format_totals() {
   $start = microtime(true);
-  $query = db_query("SELECT field_file_format_value, COUNT(entity_id) FROM {field_data_field_file_format} GROUP BY field_file_format_value");
+  //Count files per format that are attached to published nodes (only repo-item implicit)
+  $query = db_query("SELECT field_file_format_value, COUNT(entity_id) 
+    FROM {field_data_field_file_format} fdff
+    INNER JOIN
+   (SELECT field_file_resource_value ffrv, entity_id ei
+    FROM {field_data_field_file_resource}
+    ) AS files
+    ON files.ffrv = fdff.entity_id
+    INNER JOIN
+   (SELECT nid
+    FROM {node}
+    WHERE status = 1) AS nodes
+    ON nodes.nid = files.ei
+    GROUP BY field_file_format_value");
 
   $results = $query->fetchAllKeyed();
   $end = microtime(true);
 
   $speed = ($end - $start) * 1000;
-  dpm($speed, 'Total files query speed (ms): ');
+  dpm($speed, 'Total format query speed (ms): ');
 
   return $results;
 }
@@ -161,7 +169,10 @@ function title_stats_synth_totals() {
 
 function title_stats_narrator_totals() {
   $start = microtime(true);
-  $query = db_query("SELECT field_performer_value FROM {field_data_field_performer}");
+  $query = db_query("SELECT field_performer_value 
+    FROM {field_data_field_performer}
+    INNER JOIN
+    (SELECT nid");
 
   $results = $query->rowCount();
   $end = microtime(true);
