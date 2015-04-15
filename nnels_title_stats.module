@@ -13,6 +13,10 @@ function nnels_title_stats_block_info() {
   return $blocks;
 }
 
+/**
+ * Implements hook_block_view().
+ */
+
 function nnels_title_stats_block_view($block_name = '') {
   if ($block_name == 'title_stats') {
 
@@ -21,13 +25,13 @@ function nnels_title_stats_block_view($block_name = '') {
     
     $synth_narrators = title_stats_synth_totals();
     $narrators = title_stats_narrator_totals();
-    $nonsynth = (int)$narrators - (int)$synth_narrators;
+    $nonsynth = (int)$narrators - (int)$synth_narrators; //Live narration is difference between total and synth
 
     $cancon_genre = title_stats_cancon_genre_total();
-    $subject_ids = title_stats_cancon_subject_tids(); //Need the Canad tids for subject count
+    $subject_ids = title_stats_cancon_subject_tids(); //Need the Cancon tids for subject count, also improves query performance
     $cancon_subjects = title_stats_cancon_subject_total($subject_ids);
 
-    $cancon_count = (int)$cancon_genre + (int)$cancon_subjects;
+    $cancon_count = (int)$cancon_genre + (int)$cancon_subjects; //"Cancon" is entities with Canadian genres + subjects applied
 
     $titles_rows = array(
       array('Published titles', $titles_total),
@@ -46,6 +50,7 @@ function nnels_title_stats_block_view($block_name = '') {
             'rows' => $titles_rows)
       );
 
+  //t(l('admin/taxonomy-term-count?vid[0]=4&order=nid&sort=desc'))
     $files_rows = array(
       array('Published file resources', $files_total),
       array('Live narrated', $nonsynth),
@@ -81,18 +86,17 @@ function nnels_title_stats_block_view($block_name = '') {
       'EPUB 2',
       'EPUB 3',);
 
-    $format_totals_combo = array_combine($formats, $format_totals_raw);
+    $format_totals_combo = array_combine($formats, $format_totals_raw); //combine the formats with the grouped format counts
 
     $format_rows = array();
-    foreach ($format_totals_combo as $key => $value) {
+
+    foreach ($format_totals_combo as $key => $value) { //create a new array on key position
       $format_rows[] = array($key, (int)$value);
     }
 
-    usort($format_rows, function($a, $b) {
+    usort($format_rows, function($a, $b) { //sort array items descending
     return $b[1] - $a[1];
     });
-
-    //dpm($format_rows, 'Format rows before tabling: ');
 
     $format_header = array(
       array('data' => 'Format'),
@@ -101,7 +105,8 @@ function nnels_title_stats_block_view($block_name = '') {
 
     $content .= theme('table',
       array('header' => $format_header, 
-            'rows' => $format_rows));
+            'rows' => $format_rows)
+      );
 
     $block = array(
       'subject' => t('NNELS Title Stats'),
@@ -111,6 +116,8 @@ function nnels_title_stats_block_view($block_name = '') {
 
   return $block;
 }
+
+//Query Functions
 
 function title_stats_total_titles() {
   $start = microtime(true);
@@ -136,7 +143,8 @@ function title_stats_total_file_resource() {
                     (SELECT nid
                     FROM {node}
                     WHERE status = :status) AS nodes
-                    ON nodes.nid = fdfr.entity_id", array(
+                    ON nodes.nid = fdfr.entity_id", 
+                    array(
                       ':status' => 1,)
                     );
   $results = $query->rowCount();
@@ -163,7 +171,8 @@ function title_stats_format_totals() {
     FROM {node}
     WHERE status = :status) AS nodes
     ON nodes.nid = files.ei
-    GROUP BY field_file_format_value", array(
+    GROUP BY field_file_format_value", 
+    array(
       ':status' => 1,)
     );
 
@@ -226,7 +235,8 @@ function title_stats_cancon_genre_total() {
                      FROM {taxonomy_term_data}
                      WHERE name LIKE 'Canad%'
                      AND vid = :vid) AS catid
-                     ON catid.tid = fdfg.field_genre_tid", array(
+                     ON catid.tid = fdfg.field_genre_tid", 
+                     array(
                       ':vid' => 4
                     ));
   $results = $query->fetchAll();
@@ -245,7 +255,8 @@ function title_stats_cancon_subject_tids() {
                      FROM {taxonomy_term_data}
                      WHERE name LIKE 'Canad%'
                      AND vid = :vid) AS catid
-                     ON catid.tid = fdsv.field_dc_subject_value_tid", array(
+                     ON catid.tid = fdsv.field_dc_subject_value_tid", 
+                     array(
                       ':vid' => 3
                     ));
   $results = $query->fetchAllKeyed();
