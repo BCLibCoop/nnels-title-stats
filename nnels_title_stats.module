@@ -23,23 +23,53 @@ function nnels_title_stats_block_view($block_name = '') {
     $narrators = title_stats_narrator_totals();
     $nonsynth = (int)$narrators - (int)$synth_narrators;
 
-    $files_rows = array(
+    $cancon_genre = title_stats_cancon_genre_total();
+    $subject_ids = title_stats_cancon_subject_tids(); //Need the Canad tids for subject count
+    $cancon_subjects = title_stats_cancon_subject_total($subject_ids);
+
+    $cancon_count = (int)$cancon_genre + (int)$cancon_subjects;
+
+    $titles_rows = array(
       array('Published titles', $titles_total),
+      array('Canadian content titles', $cancon_count),
+      );
+
+    $titles_header = array(
+      array('data' => 'Metric'),
+      array('data' => '#'),
+      );
+
+    $content .= '<h2>Titles</h2>';
+
+    $content .= theme('table',
+      array('header' => $titles_header, 
+            'rows' => $titles_rows)
+      );
+
+    $files_rows = array(
       array('Published file resources', $files_total),
-      array('Synthetic narrated', $synth_narrators),
       array('Live narrated', $nonsynth),
+      array('Synthetic narrated', $synth_narrators),
       );
 
     $files_header = array(
       array('data' => 'Metric'),
-      array('data' => 'Count'),
+      array('data' => '#'),
       );
 
+    $content .= '<h2>Files</h2>';
+
     $content .= theme('table',
-      array('header' => $files_header, 
-            'rows' => $files_rows));
+      array('header' => $files_header,
+            'rows' => $files_rows)
+      );
 
     $format_totals_raw = title_stats_format_totals();
+
+    //If no epub 3 format add it in for completeness - mappings unlikely to change soon
+    if (! array_key_exists('8', $format_totals_raw)) {
+      array_push($format_totals_raw, "0");
+    }
 
     $formats = array(
       'DAISY 202',
@@ -48,7 +78,8 @@ function nnels_title_stats_block_view($block_name = '') {
       'MP3',
       'e-text',
       'PDF',
-      'EPUB 2',);
+      'EPUB 2',
+      'EPUB 3',);
 
     $format_totals_combo = array_combine($formats, $format_totals_raw);
 
@@ -65,21 +96,12 @@ function nnels_title_stats_block_view($block_name = '') {
 
     $format_header = array(
       array('data' => 'Format'),
-      array('data' => 'Files Count'),
+      array('data' => '#'),
       );
 
     $content .= theme('table',
       array('header' => $format_header, 
             'rows' => $format_rows));
-
-    //$cancon_genre = title_stats_cancon_genre_total();
-
-    //$can_subj_tids = title_stats_cancon_subject_tids();
-    //dpm($can_subj_tids, "Subject tids: ");
-
-    //dpm($content, "Contents of content: ");
-    //$cancon_subject = title_stats_cancon_subject_total();
-    //dpm($cancon_subject, "Published repo items with cancon subject: ");
 
     $block = array(
       'subject' => t('NNELS Title Stats'),
@@ -113,8 +135,9 @@ function title_stats_total_file_resource() {
                     INNER JOIN
                     (SELECT nid
                     FROM {node}
-                    WHERE status = 1) AS nodes
-                    ON nodes.nid = fdfr.entity_id"
+                    WHERE status = :status) AS nodes
+                    ON nodes.nid = fdfr.entity_id", array(
+                      ':status' => 1,)
                     );
   $results = $query->rowCount();
   $end = microtime(true);
@@ -138,9 +161,11 @@ function title_stats_format_totals() {
     INNER JOIN
    (SELECT nid
     FROM {node}
-    WHERE status = 1) AS nodes
+    WHERE status = :status) AS nodes
     ON nodes.nid = files.ei
-    GROUP BY field_file_format_value");
+    GROUP BY field_file_format_value", array(
+      ':status' => 1,)
+    );
 
   $results = $query->fetchAllKeyed();
   $end = microtime(true);
@@ -153,7 +178,14 @@ function title_stats_format_totals() {
 
 function title_stats_synth_totals() {
   $start = microtime(true);
-  $query = db_query("SELECT field_performer_value FROM {field_data_field_performer} WHERE field_performer_value LIKE :performer", 
+  $query = db_query("SELECT field_file_resource_value
+    FROM {field_data_field_file_resource} fdffr
+    INNER JOIN
+    (SELECT field_performer_value, entity_id perfid 
+    FROM {field_data_field_performer}
+    ) AS performers
+    ON fdffr.field_file_resource_value = performers.perfid
+    WHERE performers.field_performer_value LIKE :performer", 
     array(
       ':performer' => 'Apple%',
     )
@@ -169,11 +201,13 @@ function title_stats_synth_totals() {
 
 function title_stats_narrator_totals() {
   $start = microtime(true);
-  $query = db_query("SELECT field_performer_value 
-    FROM {field_data_field_performer}
-    INNER JOIN
-    (SELECT nid");
-
+  $query = db_query("SELECT field_file_resource_value
+                    FROM {field_data_field_file_resource} fdffr
+                    INNER JOIN
+                    (SELECT entity_id perfid
+                    FROM {field_data_field_performer}
+                    ) AS performers
+                    ON fdffr.field_file_resource_value = performers.perfid");
   $results = $query->rowCount();
   $end = microtime(true);
 
@@ -188,11 +222,13 @@ function title_stats_cancon_genre_total() {
   $query = db_query("SELECT DISTINCT entity_id
                      FROM {field_data_field_genre} fdfg
                      INNER JOIN 
-                        (SELECT tid 
-                        FROM {taxonomy_term_data}
-                        WHERE name LIKE 'Canad%'
-                        AND vid = 4) AS catid
-                     ON catid.tid = fdfg.field_genre_tid");
+                     (SELECT tid 
+                     FROM {taxonomy_term_data}
+                     WHERE name LIKE 'Canad%'
+                     AND vid = :vid) AS catid
+                     ON catid.tid = fdfg.field_genre_tid", array(
+                      ':vid' => 4
+                    ));
   $results = $query->fetchAll();
   $end = microtime(true);
   $speed = ($end - $start) * 1000;
@@ -202,29 +238,37 @@ function title_stats_cancon_genre_total() {
 }
 
 function title_stats_cancon_subject_tids() {
-  $query = db_query("SELECT tid FROM {taxonomy_term_data WHERE name LIKE 'Canad%' AND vid = 3");
-  $results = $query->fetchAll();
+  $query = db_query("SELECT entity_id subjid
+                    FROM {field_data_field_dc_subject_value} fdsv
+                    INNER JOIN
+                    (SELECT tid 
+                     FROM {taxonomy_term_data}
+                     WHERE name LIKE 'Canad%'
+                     AND vid = :vid) AS catid
+                     ON catid.tid = fdsv.field_dc_subject_value_tid", array(
+                      ':vid' => 3
+                    ));
+  $results = $query->fetchAllKeyed();
+
+ // dpm($results, 'Cancon subj tids: ');
 
   return $results;
 }
 
-/*function title_stats_cancon_subject_total() {
+function title_stats_cancon_subject_total($subject_ids) {
 
-  
-
+  $ids = implode(', ', array_keys($subject_ids));
   $start = microtime(true);
-  $query = new EntityFieldQuery;
-  $count = $query->entityCondition('entity_type', 'node')
-    ->entityCondition('bundle', 'repository_item')
-    ->propertyCondition('status', 1)
-    ->propertyCondition('field_dc_subject', 'tid', $can_subj_tids)
-    ->execute();
+  $query = db_query("SELECT DISTINCT fds.entity_id
+                    FROM {field_data_field_dc_subject} fds
+                    WHERE fds.field_dc_subject_value IN ($ids)"
+  );
 
-  $query = db_query("")
+  $results = $query->rowCount();
 
   $end = microtime(true);
   $speed = ($end - $start) * 1000;
   dpm($speed . 'ms', 'Canadian subject query speed (ms): ');
 
-  return $result;
-}*/
+  return $results;
+}
