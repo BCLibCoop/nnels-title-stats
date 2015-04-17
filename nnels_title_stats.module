@@ -255,7 +255,7 @@ function title_stats_subject_count_ranks($order, $lim) {
      FROM {taxonomy_term_data} ttd 
      WHERE ttd.vid = :vid) AS terms 
      ON terms.tid = fdsv.field_dc_subject_value_tid 
-     GROUP BY name 
+     GROUP BY fsubvaltid 
      ORDER BY cid " . $order . "
      LIMIT " . $lim;
 
