@@ -282,6 +282,7 @@ function title_stats_cancon_genre_total() {
                       ':vid' => 4
                     ));
   $results = $query->fetchAll();
+  
   $end = microtime(true);
   $speed = ($end - $start) * 1000;
   dpm($speed . 'ms', 'Canadian genre query speed (ms): ');
@@ -291,7 +292,7 @@ function title_stats_cancon_genre_total() {
 
 function title_stats_cancon_subject_total() {
   $start = microtime(true);
-  $query = db_query("SELECT entity_id
+  $query = db_query("SELECT DISTINCT entity_id
                     FROM {field_data_field_subject} fdfs
                     INNER JOIN
                     (SELECT tid 
