@@ -25,8 +25,7 @@ function nnels_title_stats_block_view($block_name = '') {
     
 
     $cancon_genre = title_stats_cancon_genre_total();
-    $subject_ids = title_stats_cancon_subject_tids(); //Need the Cancon tids for subject count, also improves query performance
-    $cancon_subjects = title_stats_cancon_subject_total($subject_ids);
+    $cancon_subjects = title_stats_cancon_subject_total();
 
     $cancon_count = (int)$cancon_genre + (int)$cancon_subjects; //"Cancon" is entities with Canadian genres + subjects applied
 
@@ -248,14 +247,14 @@ function title_stats_narrator_totals() {
 
 function title_stats_subject_count_ranks($order, $lim) {
 
-  $sql = "SELECT field_dc_subject_value_tid fsubvaltid, name, COUNT(entity_id) cid 
-    FROM {field_data_field_dc_subject_value} fdsv 
+  $sql = "SELECT field_subject_tid fsubtid, name, COUNT(entity_id) cid 
+    FROM {field_data_field_subject} fdfs 
     INNER JOIN  
     (SELECT tid, name 
      FROM {taxonomy_term_data} ttd 
      WHERE ttd.vid = :vid) AS terms 
-     ON terms.tid = fdsv.field_dc_subject_value_tid 
-     GROUP BY fsubvaltid 
+     ON terms.tid = fdfs.field_subject_tid 
+     GROUP BY fsubtid 
      ORDER BY cid " . $order . "
      LIMIT " . $lim;
 
@@ -290,34 +289,20 @@ function title_stats_cancon_genre_total() {
   return $results;
 }
 
-function title_stats_cancon_subject_tids() {
-
-  $query = db_query("SELECT entity_id subjid
-                    FROM {field_data_field_dc_subject_value} fdsv
+function title_stats_cancon_subject_total() {
+  $start = microtime(true);
+  $query = db_query("SELECT entity_id
+                    FROM {field_data_field_subject} fdfs
                     INNER JOIN
                     (SELECT tid 
                      FROM {taxonomy_term_data}
                      WHERE name LIKE 'Canad%'
                      AND vid = :vid) AS catid
-                     ON catid.tid = fdsv.field_dc_subject_value_tid", 
+                     ON catid.tid = fdfs.field_subject_tid", 
                      array(
                       ':vid' => 3
                     ));
-  $results = $query->fetchAllKeyed();
-
-  return $results;
-}
-
-function title_stats_cancon_subject_total($subject_ids) {
-
-  $ids = implode(', ', array_keys($subject_ids));
-  $start = microtime(true);
-  $query = db_query("SELECT DISTINCT fds.entity_id
-                    FROM {field_data_field_dc_subject} fds
-                    WHERE fds.field_dc_subject_value IN ($ids)"
-  );
-
-  $results = $query->rowCount();
+  $results = $query->fetchAll();
 
   $end = microtime(true);
   $speed = ($end - $start) * 1000;
@@ -325,3 +310,5 @@ function title_stats_cancon_subject_total($subject_ids) {
 
   return $results;
 }
+
+
