@@ -71,20 +71,15 @@ function nnels_title_stats_block_view($block_name = '') {
 
     $format_totals_raw = title_stats_format_totals();
 
-    //If no epub 3 format add it in for completeness - mappings unlikely to change soon
-    if (! array_key_exists('8', $format_totals_raw)) {
-      array_push($format_totals_raw, "0");
-    }
+    $all_fields = field_info_fields();
+    $formats =  list_allowed_values($all_fields['field_file_format']); //All the formats available
+    ksort($formats);
 
-    $formats = array(
-      'DAISY 202',
-      'DAISY 3',
-      'Braille',
-      'MP3',
-      'e-text',
-      'PDF',
-      'EPUB 2',
-      'EPUB 3',);
+    $diffs = array_diff_key($formats, $format_totals_raw); //The formats not retrieved by the title_stats_format_totals()
+
+    foreach ($diffs as $diff) {
+      array_push($format_totals_raw, 0); //padding for these empty formats
+    }
 
     $format_totals_combo = array_combine($formats, $format_totals_raw); //combine the formats with the grouped format counts
 
