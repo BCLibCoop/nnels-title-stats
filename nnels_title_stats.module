@@ -27,6 +27,12 @@ function nnels_title_stats_block_view($block_name = '') {
     $cancon_subjects = title_stats_cancon_subject_total();
     $cancon_count = (int)$cancon_genre + (int)$cancon_subjects; //"Cancon" is entities with Canadian genres + subjects applied
 
+    $synth_narrators = title_stats_synth_totals();
+    $narrators = title_stats_narrator_totals();
+    $nonsynth = (int)$narrators - (int)$synth_narrators; //Live narration is difference between total and synth
+
+    $subj_top = title_stats_subject_count_ranks('DESC', 10);
+
     //$prefix = 's3://';
     $provider_paths = array(
     'Recorded Books' => 'RBDigital',
@@ -37,27 +43,23 @@ function nnels_title_stats_block_view($block_name = '') {
     'ABWA' => 'AU/WA/ABWA',
     );
 
-    $provider_out = array();
+    $providers_out = array();
 
     $start = microtime(true);
 
     foreach ($provider_paths as $provider => $path) {
         $prov_title_count = title_stats_titles_by_provider( $path );
-        $provider_out[$provider] .= $prov_title_count;
+        $providers_out[] = array(0 => $provider, 1 => $prov_title_count);
     }
 
     $end = microtime(true);
-    $speed = ($end - $start) * 1000;
+    $speed = round(($end - $start) * 1000, 4);
     dpm($speed . 'ms', 'Title by provider query speed (ms): ');
-
-    dpm($provider_out, 'Titles per provider: ');
     //Sort the array, add to own table
 
-    $synth_narrators = title_stats_synth_totals();
-    $narrators = title_stats_narrator_totals();
-    $nonsynth = (int)$narrators - (int)$synth_narrators; //Live narration is difference between total and synth
-
-    $subj_top = title_stats_subject_count_ranks('DESC', 10);
+    usort($providers_out, function($a, $b) { //sort array items descending
+    return $b[1] - $a[1];
+    });
 
     $titles_rows = array(
       array('Published titles', $titles_total),
@@ -69,11 +71,23 @@ function nnels_title_stats_block_view($block_name = '') {
       array('data' => '#'),
       );
 
-    $content .= '<h2>Titles</h2>';
+    $content = '<h2>Titles</h2>';
 
     $content .= theme('table',
       array('header' => $titles_header, 
             'rows' => $titles_rows)
+      );
+
+    $content .= '<h3>Titles by Provider contribution</h3>';
+
+    $provider_header = array(
+      array('data' => 'Provider'),
+      array('data' => 'Titles'),
+      );
+
+    $content .= theme('table',
+      array(/*'header' => $provider_header,*/ 
+            'rows' => $providers_out)
       );
 
     $files_rows = array(
@@ -123,8 +137,10 @@ function nnels_title_stats_block_view($block_name = '') {
       array('data' => '#'),
       );
 
+    $content .= '<h3>Files per Format</h3>';
+
     $content .= theme('table',
-      array('header' => $format_header, 
+      array(/*'header' => $format_header,*/ 
             'rows' => $format_rows)
       );
 
@@ -166,7 +182,7 @@ function title_stats_total_titles() {
   $results = $query->rowCount(); //or $query->rowCount() faster?
   $end = microtime(true);
 
-  $speed = ($end - $start) *1000;
+  $speed = round(($end - $start) * 1000, 4);
   dpm($speed, 'Total titles query speed (ms): ');
 
   return $results;
@@ -189,7 +205,7 @@ function title_stats_total_file_resource() {
   $results = $query->rowCount();
   $end = microtime(true);
 
-  $speed = ($end - $start) * 1000;
+  $speed = round(($end - $start) * 1000, 4);
   dpm($speed, 'Total files query speed (ms): ');
 
   return $results;
@@ -219,7 +235,7 @@ function title_stats_format_totals() {
   $results = $query->fetchAllKeyed();
   $end = microtime(true);
 
-  $speed = ($end - $start) * 1000;
+  $speed = round(($end - $start) * 1000, 4);
   dpm($speed, 'Total format query speed (ms): ');
 
   return $results;
@@ -258,7 +274,7 @@ function title_stats_narrator_totals() {
   $results = $query->rowCount();
   $end = microtime(true);
 
-  $speed = ($end - $start) * 1000;
+  $speed = round(($end - $start) * 1000, 4);
   dpm($speed, 'Full narrators query speed (ms): ');
 
   return $results;
@@ -303,7 +319,7 @@ function title_stats_cancon_genre_total() {
   $results = $query->rowCount();
 
   $end = microtime(true);
-  $speed = ($end - $start) * 1000;
+  $speed = round(($end - $start) * 1000, 4);
   dpm($speed . 'ms', 'Canadian genre query speed (ms): ');
 
   return $results;
@@ -325,7 +341,7 @@ function title_stats_cancon_subject_total() {
   $results = $query->rowCount();
 
   $end = microtime(true);
-  $speed = ($end - $start) * 1000;
+  $speed = round(($end - $start) * 1000, 4);
   dpm($speed . 'ms', 'Canadian subject query speed (ms): ');
 
   return $results;
