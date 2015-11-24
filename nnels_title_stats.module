@@ -23,10 +23,35 @@ function nnels_title_stats_block_view($block_name = '') {
     $titles_total = title_stats_total_titles();
     $files_total = title_stats_total_file_resource();
     
-
     $cancon_genre = title_stats_cancon_genre_total();
     $cancon_subjects = title_stats_cancon_subject_total();
     $cancon_count = (int)$cancon_genre + (int)$cancon_subjects; //"Cancon" is entities with Canadian genres + subjects applied
+
+    //$prefix = 's3://';
+    $provider_paths = array(
+    'Recorded Books' => 'RBDigital',
+    'UBC Crane' => 'CA/BC/BVAUCC',
+    'InterLINK' => 'CA/BC/BBGVL',
+    'PostHypnotic Press' => 'CA/NNELS/PHP',
+    'Freehand Books' => 'CA/NNELS/FB',
+    'ABWA' => 'AU/WA/ABWA',
+    );
+
+    $provider_out = array();
+
+    $start = microtime(true);
+
+    foreach ($provider_paths as $provider => $path) {
+        $prov_title_count = title_stats_titles_by_provider( $path );
+        $provider_out[$provider] .= $prov_title_count;
+    }
+
+    $end = microtime(true);
+    $speed = ($end - $start) * 1000;
+    dpm($speed . 'ms', 'Title by provider query speed (ms): ');
+
+    dpm($provider_out, 'Titles per provider: ');
+    //Sort the array, add to own table
 
     $synth_narrators = title_stats_synth_totals();
     $narrators = title_stats_narrator_totals();
@@ -174,19 +199,19 @@ function title_stats_format_totals() {
 
   $start = microtime(true);
   //Count files per format that are attached to published nodes (only repo-item implicit)
-  $query = db_query("SELECT field_file_format_value, COUNT(entity_id) 
-    FROM {field_data_field_file_format} fdff
-    INNER JOIN
-   (SELECT field_file_resource_value ffrv, entity_id ei
-    FROM {field_data_field_file_resource}
-    ) AS files
-    ON files.ffrv = fdff.entity_id
-    INNER JOIN
-   (SELECT nid
-    FROM {node}
-    WHERE status = :status) AS nodes
-    ON nodes.nid = files.ei
-    GROUP BY field_file_format_value", 
+  $query = db_query("SELECT field_file_format_value, COUNT(entity_id)
+                    FROM {field_data_field_file_format} fdff
+                    INNER JOIN
+                   (SELECT field_file_resource_value ffrv, entity_id ei
+                    FROM {field_data_field_file_resource}
+                    ) AS files
+                    ON files.ffrv = fdff.entity_id
+                    INNER JOIN
+                   (SELECT nid
+                    FROM {node}
+                    WHERE status = :status) AS nodes
+                    ON nodes.nid = files.ei
+                    GROUP BY field_file_format_value",
     array(
       ':status' => 1,)
     );
@@ -203,13 +228,13 @@ function title_stats_format_totals() {
 function title_stats_synth_totals() {
 
   $query = db_query("SELECT field_file_resource_value
-    FROM {field_data_field_file_resource} fdffr
-    INNER JOIN
-    (SELECT field_performer_value, entity_id perfid 
-    FROM {field_data_field_performer}
-    ) AS performers
-    ON fdffr.field_file_resource_value = performers.perfid
-    WHERE performers.field_performer_value LIKE :performer", 
+                    FROM {field_data_field_file_resource} fdffr
+                    INNER JOIN
+                    (SELECT field_performer_value, entity_id perfid
+                    FROM {field_data_field_performer}
+                    ) AS performers
+                    ON fdffr.field_file_resource_value = performers.perfid
+                    WHERE performers.field_performer_value LIKE :performer",
     array(
       ':performer' => 'Apple%',
     )
@@ -242,15 +267,15 @@ function title_stats_narrator_totals() {
 function title_stats_subject_count_ranks($order, $lim) {
 
   $sql = "SELECT field_subject_tid fsubtid, name, COUNT(entity_id) cid 
-    FROM {field_data_field_subject} fdfs 
-    INNER JOIN  
-    (SELECT tid, name 
-     FROM {taxonomy_term_data} ttd 
-     WHERE ttd.vid = :vid) AS terms 
-     ON terms.tid = fdfs.field_subject_tid 
-     GROUP BY fsubtid 
-     ORDER BY cid " . $order . "
-     LIMIT " . $lim;
+          FROM {field_data_field_subject} fdfs
+          INNER JOIN
+          (SELECT tid, name
+          FROM {taxonomy_term_data} ttd
+          WHERE ttd.vid = :vid) AS terms
+          ON terms.tid = fdfs.field_subject_tid
+          GROUP BY fsubtid
+          ORDER BY cid " . $order . "
+          LIMIT " . $lim;
 
   $query = db_query($sql, array(
       ':vid' => 3,)
@@ -307,3 +332,18 @@ function title_stats_cancon_subject_total() {
 }
 
 
+function title_stats_titles_by_provider( $path ) {
+
+  $query = db_query("SELECT DISTINCT entity_id
+                    FROM {field_data_field_file_resource} fdffr
+                    INNER JOIN
+                    (SELECT entity_id ei, field_s3_path_value
+                    FROM {field_data_field_s3_path}
+                    WHERE field_s3_path_value
+                    LIKE 's3:\/\/%".$path."%') AS s3paths
+                    ON s3paths.ei = fdffr.field_file_resource_value
+                    GROUP BY field_file_resource_value");
+  $results = $query->rowCount();
+
+  return $results;
+}
