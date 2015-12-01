@@ -55,10 +55,6 @@ function nnels_title_stats_block_view($block_name = '') {
         $prov_title_counts[] = $prov_title_count;
     }
 
-    //Others = total pub titles - sum of $prov_title_counts
-    $others_count = $titles_total - (array_sum($prov_title_counts));
-    $providers_out[] = array(0 => 'Others', 1 => $others_count);
-
     $end = microtime(true);
     $speed = round(($end - $start) * 1000, 4);
     dpm($speed . 'ms', 'Title by provider query speed (ms): ');
@@ -67,6 +63,10 @@ function nnels_title_stats_block_view($block_name = '') {
     usort($providers_out, function($a, $b) { //sort array items descending
     return $b[1] - $a[1];
     });
+
+    //Others = total pub titles - sum of $prov_title_counts
+    $others_count = $titles_total - (array_sum($prov_title_counts));
+    $providers_out[] = array(0 => 'Others', 1 => $others_count);
 
     $titles_rows = array(
       array('Published titles', $titles_total),
