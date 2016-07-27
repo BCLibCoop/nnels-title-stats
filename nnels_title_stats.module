@@ -54,7 +54,7 @@ function nnels_title_stats_block_view($block_name = '') {
 
     $end = microtime(true);
     $speed = round(($end - $start) * 1000, 4);
-    dpm($speed . 'ms', 'Title by provider query speed (ms): ');
+    drupal_set_message( 'Title by provider query: ' . $speed );
     //Sort the array, add to own table
 
     usort($providers_out, function($a, $b) { //sort array items descending
@@ -183,7 +183,7 @@ function title_stats_total_titles() {
   $end = microtime(true);
 
   $speed = round(($end - $start) * 1000, 4);
-  dpm($speed, 'Total titles query speed (ms): ');
+  drupal_set_message( 'Total titles query: ' . $speed );
 
   return $results;
 }
@@ -206,7 +206,7 @@ function title_stats_total_file_resource() {
   $end = microtime(true);
 
   $speed = round(($end - $start) * 1000, 4);
-  dpm($speed, 'Total files query speed (ms): ');
+  drupal_set_message( 'Total files query: ' . $speed );
 
   return $results;
 }
@@ -236,7 +236,7 @@ function title_stats_format_totals() {
   $end = microtime(true);
 
   $speed = round(($end - $start) * 1000, 4);
-  dpm($speed, 'Total format query speed (ms): ');
+  drupal_set_message( 'Total format query: ' . $speed );
 
   return $results;
 }
@@ -275,7 +275,7 @@ function title_stats_narrator_totals() {
   $end = microtime(true);
 
   $speed = round(($end - $start) * 1000, 4);
-  dpm($speed, 'Full narrators query speed (ms): ');
+  drupal_set_message( 'Full narrators query: ' . $speed );
 
   return $results;
 }
@@ -320,7 +320,7 @@ function title_stats_cancon_genre_total() {
 
   $end = microtime(true);
   $speed = round(($end - $start) * 1000, 4);
-  dpm($speed . 'ms', 'Canadian genre query speed (ms): ');
+  drupal_set_message( 'Canadian genre query: ' . $speed );
 
   return $results;
 }
@@ -342,7 +342,7 @@ function title_stats_cancon_subject_total() {
 
   $end = microtime(true);
   $speed = round(($end - $start) * 1000, 4);
-  dpm($speed . 'ms', 'Canadian subject query speed (ms): ');
+  drupal_set_message( 'Canadian subject query: ' . $speed );
 
   return $results;
 }
