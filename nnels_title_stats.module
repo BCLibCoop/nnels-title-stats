@@ -41,15 +41,18 @@ function nnels_title_stats_block_view($block_name = '') {
     'PostHypnotic Press' => 'CA/NNELS/PHP',
     'Freehand Books' => 'CA/NNELS/FB',
     'ABWA' => 'AU/WA/ABWA',
+    'MWPL' => 'CA/MB/MWPL',
     );
 
     $providers_out = array();
+    $prov_title_counts = array();
 
     $start = microtime(true);
 
     foreach ($provider_paths as $provider => $path) {
         $prov_title_count = title_stats_titles_by_provider( $path );
         $providers_out[] = array(0 => $provider, 1 => $prov_title_count);
+        $prov_title_counts[] = $prov_title_count;
     }
 
     $end = microtime(true);
@@ -60,6 +63,10 @@ function nnels_title_stats_block_view($block_name = '') {
     usort($providers_out, function($a, $b) { //sort array items descending
     return $b[1] - $a[1];
     });
+
+    //Others = total pub titles - sum of $prov_title_counts
+    $others_count = $titles_total - (array_sum($prov_title_counts));
+    $providers_out[] = array(0 => 'Others', 1 => $others_count);
 
     $titles_rows = array(
       array('Published titles', $titles_total),
